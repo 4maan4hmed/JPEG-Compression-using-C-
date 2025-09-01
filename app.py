@@ -3,23 +3,20 @@ import os
 from PIL import Image
 import tempfile
 from jpeg_wrapper import compress_jpeg
-import io
-import base64
 
 def main():
+    # Check compressor availability
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    compressor_path = os.path.join(script_dir, "jpeg_compressor.exe")
 
-    if not os.path.exists('jpeg_compressor'):
-        st.error("""
-        JPEG compressor engine not found! Please ensure:
-        1. The 'jpeg_compressor' binary exists
-        2. It has execute permissions
-        """)
+    if not os.path.exists(compressor_path):
+        st.error(f"JPEG compressor engine not found at: {compressor_path}")
         return
-    
+
     
     st.title("JPEG Compression Tool")
     st.write("Upload an image and adjust compression quality")
-    
+
     # File uploader
     uploaded_file = st.file_uploader("Choose a JPEG image", type=["jpg", "jpeg"])
     
@@ -33,45 +30,47 @@ def main():
     )
     
     if uploaded_file is not None:
-        # Create a temporary directory
+        # Show original image
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Original Image", use_column_width=True)
+
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Display original image
-            image = Image.open(uploaded_file)
-            st.image(image, caption="Original Image", use_column_width=True)
-            
-            # Save uploaded file to temporary location
             temp_input = os.path.join(temp_dir, "input.jpg")
             temp_output = os.path.join(temp_dir, "output.jpg")
-            
+
+            # Save uploaded file
             with open(temp_input, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            
-            # Size information
+
+            # Show size
             original_size = os.path.getsize(temp_input)
             st.write(f"Original file size: {original_size/1024:.2f} KB")
-            
-            # Compress button
+
             if st.button("Compress Image"):
                 with st.spinner("Compressing..."):
-                    # Call the wrapped compression function
                     success, output = compress_jpeg(temp_input, temp_output, quality)
                     
                     if success and os.path.exists(temp_output):
-                        # Display compressed image
-                        compressed_image = Image.open(temp_output)
-                        st.image(compressed_image, caption=f"Compressed Image (Quality: {quality})", use_column_width=True)
-                        
-                        # Size information
                         compressed_size = os.path.getsize(temp_output)
+
+                        # Show compressed image
+                        compressed_image = Image.open(temp_output)
+                        st.image(
+                            compressed_image, 
+                            caption=f"Compressed Image (Quality: {quality})", 
+                            use_column_width=True
+                        )
+
+                        # Show size info
                         st.write(f"Compressed file size: {compressed_size/1024:.2f} KB")
                         st.write(f"Compression ratio: {original_size/compressed_size:.2f}:1")
-                        
-                        # Show compression details
+
+                        # Show compressor stdout
                         st.text_area("Compression Details", output, height=100)
-                        
-                        # Download button
+
+                        # Download option
                         with open(temp_output, "rb") as file:
-                            btn = st.download_button(
+                            st.download_button(
                                 label="Download Compressed Image",
                                 data=file,
                                 file_name="compressed.jpg",
